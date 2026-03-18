@@ -320,6 +320,20 @@ class ClusterManager:
         node_list = []
 
         for node in nodes:
+            # Check whether node is unschedulable
+            if node.spec.unschedulable:
+                logger.debug("Node %s is unschedulable, skipping", node.metadata.name)
+                continue
+            # Check whether node is not Ready
+            is_ready = False
+            for condition in node.status.conditions:
+                if condition.type == "Ready" and condition.status == "True":
+                    is_ready = True
+                    break
+            if not is_ready:
+                logger.debug("Node %s is not Ready, skipping", node.metadata.name)
+                continue
+
             labels = {}
             if node.metadata.labels is not None:
                 for label_key, label_value in node.metadata.labels.items():
