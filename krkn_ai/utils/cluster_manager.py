@@ -155,7 +155,9 @@ class ClusterManager:
             skip_pod_name_patterns, default_match_all=False
         )
 
-        pods = self.core_api.list_namespaced_pod(namespace=namespace.name).items
+        pods = self.core_api.list_namespaced_pod(
+            namespace=namespace.name, field_selector="status.phase=Running"
+        ).items
         pod_list = []
 
         for pod in pods:
