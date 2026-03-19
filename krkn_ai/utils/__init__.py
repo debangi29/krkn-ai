@@ -50,17 +50,17 @@ def run_shell(command, do_not_log=False, timeout=None):
             # Wait for process to terminate gracefully
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            # Forcely terminate
+            # Forcefully terminate
             process.kill()
             process.wait()
-        reader.join(timeout=timeout)
+        reader.join(timeout=5)
         raise ShellCommandTimeoutError(
             f"Command '{command[0]}' timed out after {timeout} seconds"
         )
 
-    reader.join(timeout=timeout)
+    reader.join(timeout=5)
 
-    if process.stdout:
+    if not reader.is_alive() and process.stdout:
         process.stdout.close()
 
     logs = "".join(output_lines)
