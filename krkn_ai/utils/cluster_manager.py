@@ -4,6 +4,7 @@ from krkn_lib.k8s.krkn_kubernetes import KrknKubernetes
 from kubernetes.client.models import V1PodSpec
 from krkn_ai.utils import run_shell
 from krkn_ai.utils.logger import get_logger
+from krkn_ai.models.custom_errors import ShellCommandTimeoutError
 from krkn_ai.utils.pattern_matcher import PatternMatcher
 from krkn_ai.models.cluster_components import (
     ClusterComponents,
@@ -320,6 +321,20 @@ class ClusterManager:
         node_list = []
 
         for node in nodes:
+            # Check whether node is unschedulable
+            if node.spec.unschedulable:
+                logger.debug("Node %s is unschedulable, skipping", node.metadata.name)
+                continue
+            # Check whether node is not Ready
+            is_ready = False
+            for condition in node.status.conditions:
+                if condition.type == "Ready" and condition.status == "True":
+                    is_ready = True
+                    break
+            if not is_ready:
+                logger.debug("Node %s is not Ready, skipping", node.metadata.name)
+                continue
+
             labels = {}
             if node.metadata.labels is not None:
                 for label_key, label_value in node.metadata.labels.items():
@@ -368,12 +383,16 @@ class ClusterManager:
         return node_list
 
     def list_node_interfaces(self, node: str) -> List[str]:
-        # List all the interfaces on the node
         logger.debug("Listing node interfaces for node %s", node)
-        log, code = run_shell(
-            f"oc debug -q node/{node} -- chroot /host ls /sys/class/net",
-            do_not_log=True,
-        )
+        try:
+            log, code = run_shell(
+                f"oc debug -q node/{node} -- chroot /host ls /sys/class/net",
+                do_not_log=True,
+                timeout=180,
+            )
+        except ShellCommandTimeoutError:
+            logger.warning("Timed out listing interfaces for node %s, skipping", node)
+            return []
         if code != 0:
             logger.warning("Unable to find interfaces for node %s", node)
             return []
