@@ -7,7 +7,7 @@ name = "krkn_ai"
 version = "0.0.3"
 description = "Krkn-AI"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11,<4.0"
 license = { text = "Apache-2.0" }
 authors = [ { name = "krkn-chaos" } ]
 
@@ -35,6 +35,10 @@ dev = [
   "coverage",
   "notebook",
   "jupyterlab",
+]
+monitor = [
+    "plotly>=6.6.0",
+    "streamlit>=1.55.0",
 ]
 
 [tool.setuptools]
