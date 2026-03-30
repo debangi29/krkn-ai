@@ -1,4 +1,5 @@
 import os
+import uuid
 
 import click
 from pydantic import ValidationError
@@ -72,8 +73,12 @@ def run(
     seed: int = None,
     verbose: int = 0,  # Default to INFO level
 ):
-    init_logger(output, verbose >= 2)
+    run_uuid = str(uuid.uuid4())
+    new_output_path = os.path.join(output, run_uuid)
+    init_logger(new_output_path, verbose >= 2)
     logger = get_logger(__name__)
+
+    logger.info("Krkn-AI run UUID: %s", run_uuid)
 
     if config == "" or config is None:
         logger.error("Config file invalid.")
@@ -106,8 +111,9 @@ def run(
 
     try:
         genetic = GeneticAlgorithm(
-            parsed_config,
-            output_dir=output,
+            run_uuid=run_uuid,
+            config=parsed_config,
+            output_dir=new_output_path,
             format=format,
             runner_type=enum_runner_type,
         )
@@ -124,7 +130,7 @@ def run(
         logger.exception("Something went wrong: %s", e)
         exit(1)
     finally:
-        logger.info("Check run.log file in '%s' for more details.", output)
+        logger.info("Check run.log file in '%s' for more details.", new_output_path)
 
 
 @main.command(help="Discover components for Krkn-AI tests")

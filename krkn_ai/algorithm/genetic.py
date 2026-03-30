@@ -43,10 +43,14 @@ class GeneticAlgorithm:
         output_dir: str,
         format: str,
         runner_type: KrknRunnerType = None,
+        run_uuid: str = str(uuid.uuid4()),
     ):
-        self.output_dir = output_dir
         self.config = config
         self.format = format
+        self.run_uuid = run_uuid
+
+        # Organize results under run_uuid subdirectory
+        self.output_dir = output_dir
 
         # Initialize RNG with seed for reproducibility
         rng.set_seed(self.config.seed)
@@ -56,7 +60,7 @@ class GeneticAlgorithm:
             logger.info("Random seed: None (non-reproducible mode)")
 
         self.krkn_client = KrknRunner(
-            config, output_dir=output_dir, runner_type=runner_type
+            config, output_dir=self.output_dir, runner_type=runner_type
         )
         self.population: List[BaseScenario] = []
 
@@ -88,10 +92,6 @@ class GeneticAlgorithm:
         self.elastic_client: Optional[ElasticSearchClient] = None
         if self.config.elastic is not None:
             self.elastic_client = ElasticSearchClient(self.config.elastic)
-
-        # Generate unique run UUID for this experiment
-        self.run_uuid = str(uuid.uuid4())
-        logger.info("Krkn-AI run UUID: %s", self.run_uuid)
 
         # Track run metadata for results summary
         self.start_time: Optional[datetime.datetime] = None
