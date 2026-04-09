@@ -1,6 +1,7 @@
 import os
 import uuid
 import json
+from krkn_ai.constants import STATUS_STARTED, STATUS_FAILED
 
 import click
 from pydantic import ValidationError
@@ -70,7 +71,7 @@ def main():
     help="Launch live monitoring dashboard in the background.",
 )
 @click.option(
-    "--dashboard-port",
+    "--port",
     type=int,
     help="Port to run Streamlit server on when monitoring is enabled.",
     default=8501,
@@ -87,7 +88,7 @@ def run(
     seed: int = None,
     verbose: int = 0,  # Default to INFO level
     monitoring: bool = False,
-    dashboard_port: int = 8501,
+    port: int = 8501,
 ):
     run_uuid = str(uuid.uuid4())
     new_output_path = os.path.join(output, run_uuid)
@@ -129,14 +130,14 @@ def run(
     if monitoring:
         logger.info("Starting live monitoring dashboard...")
         streamlit_process = DashboardManager.start(
-            new_output_path, dashboard_port, status="running", background=True
+            new_output_path, port, status="running", background=True
         )
 
     run_success = False
     try:
         os.makedirs(new_output_path, exist_ok=True)
         with open(os.path.join(new_output_path, "results.json"), "w") as f:
-            json.dump({"status": "started"}, f)
+            json.dump({"status": STATUS_STARTED}, f)
         
         genetic = GeneticAlgorithm(
             run_uuid=run_uuid,
@@ -162,7 +163,7 @@ def run(
         if not run_success:
             try:
                 with open(os.path.join(new_output_path, "results.json"), "w") as f:
-                    json.dump({"status": "failed"}, f)
+                    json.dump({"status": STATUS_FAILED}, f)
             except Exception:
                 pass
             

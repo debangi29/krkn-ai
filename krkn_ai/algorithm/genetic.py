@@ -28,6 +28,7 @@ from krkn_ai.utils.rng import rng
 from krkn_ai.models.custom_errors import PopulationSizeError, UniqueScenariosError
 from krkn_ai.utils.output import format_result_filename, format_duration
 from krkn_ai.utils.elastic_client import ElasticSearchClient
+from krkn_ai.constants import STATUS_IN_PROGRESS
 
 logger = get_logger(__name__)
 
@@ -124,7 +125,7 @@ class GeneticAlgorithm:
             if os.path.exists(results_path):
                 with open(results_path, "r") as f:
                     data = json.load(f)
-                data["status"] = "in progress"
+                data["status"] = STATUS_IN_PROGRESS
                 with open(results_path, "w") as f:
                     json.dump(data, f)
         except Exception as e:

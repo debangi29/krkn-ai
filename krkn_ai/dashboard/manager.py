@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import importlib.util
 from krkn_ai.utils.logger import get_logger
 
 class DashboardManager:
@@ -10,9 +11,7 @@ class DashboardManager:
         dashboard_dir = os.path.dirname(__file__)
         actual_output = os.path.abspath(output_dir if output_dir else "./")
         
-        try:
-            import streamlit
-        except ImportError:
+        if importlib.util.find_spec("streamlit") is None:
             logger.error("Monitoring dependencies not found. Please install them using 'pip install krkn-ai[monitor]'.")
             sys.exit(1)
             
@@ -24,6 +23,8 @@ class DashboardManager:
             os.path.join(dashboard_dir, "app.py"),
             "--server.port",
             str(port),
+            "--server.headless",
+            "true",
             "--",
             "--output-dir",
             actual_output,

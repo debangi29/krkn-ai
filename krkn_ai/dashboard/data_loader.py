@@ -8,14 +8,16 @@ import re
 import json
 
 def load_results_csv(output_dir: str):
+    """Return (file_exists, df).  df is None when file is missing or empty or unreadable."""
     csv_path = os.path.join(output_dir, "reports", "all.csv")
-    if os.path.exists(csv_path):
-        try:
-            df = pd.read_csv(csv_path)
-            return df
-        except Exception as e:
-            logging.error(f"Failed to read {csv_path}: {e}")
-    return None
+    if not os.path.exists(csv_path):
+        return False, None
+    try:
+        df = pd.read_csv(csv_path)
+        return True, (None if df.empty else df)
+    except Exception as e:
+        logging.error(f"Failed to read {csv_path}: {e}")
+        return True, None
 
 def load_config_yaml(output_dir: str):
     config_path = os.path.join(output_dir, "krkn-ai.yaml")
@@ -73,10 +75,16 @@ def load_detailed_scenarios_data(output_dir: str):
     return pd.DataFrame()
 
 def load_health_check_csv(output_dir: str):
+    """Return (file_exists, df).  df is None when file is missing or empty or unreadable."""
     csv_path = os.path.join(output_dir, "reports", "health_check_report.csv")
-    if os.path.exists(csv_path):
-        return pd.read_csv(csv_path)
-    return None
+    if not os.path.exists(csv_path):
+        return False, None
+    try:
+        df = pd.read_csv(csv_path)
+        return True, (None if df.empty else df)
+    except Exception as e:
+        logging.error(f"Failed to read {csv_path}: {e}")
+        return True, None
 
 # def load_best_scenarios_yaml(output_dir: str):
 #     yaml_path = os.path.join(output_dir, "reports", "best_scenarios.yaml")
