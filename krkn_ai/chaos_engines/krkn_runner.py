@@ -474,8 +474,12 @@ class KrknRunner:
             end_time=timestamp,
             granularity=100,
         )
-        # Find the first series with non-empty values (multi-series responses possible
-        # with unaggregated PromQL queries; aggregation should produce single series)
+        if not result:
+            raise FitnessFunctionCalculationError(
+                f"Prometheus returned no data for query '{query}' at {timestamp} "
+                f"during {context}. This may indicate the metric does not exist "
+                f"in the requested time range or Prometheus has not yet scraped data."
+            )
         for series in result:
             if series.get("values"):
                 return series["values"][-1][1]
@@ -512,7 +516,12 @@ class KrknRunner:
             end_time=end,
             granularity=100,
         )
-        # Find the first series with non-empty values (same logic as point fitness)
+        if not result:
+            raise FitnessFunctionCalculationError(
+                f"Prometheus returned no data for query '{query}' in range "
+                f"[{start}, {end}]. This may indicate the metric does not exist "
+                f"in the requested time range or Prometheus has not yet scraped data."
+            )
         for series in result:
             if series.get("values"):
                 return float(series["values"][-1][1])
