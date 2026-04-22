@@ -442,21 +442,52 @@ class KrknRunner:
         Helpful to measure values for counter based metric like restarts.
         """
         logger.debug("Calculating Point Fitness")
-        result_at_beginning = self.prom_client.process_prom_query_in_range(
-            query,
-            start_time=start,
-            end_time=start,
-            granularity=100,
-        )[0]["values"][-1][1]
-
-        result_at_end = self.prom_client.process_prom_query_in_range(
-            query,
-            start_time=end,
-            end_time=end,
-            granularity=100,
-        )[0]["values"][-1][1]
+        result_at_beginning = self._query_prometheus_single_point(
+            query, start, "point fitness (start)"
+        )
+        result_at_end = self._query_prometheus_single_point(
+            query, end, "point fitness (end)"
+        )
 
         return float(result_at_end) - float(result_at_beginning)
+
+    def _query_prometheus_single_point(
+        self, query: str, timestamp: datetime.datetime, context: str
+    ) -> str:
+        """
+        Query Prometheus for a single point at a specific timestamp.
+
+        Args:
+            query: The PromQL query to execute
+            timestamp: The timestamp to query at
+            context: Description of where this is called from (for error messages)
+
+        Returns:
+            The metric value as a string
+
+        Raises:
+            FitnessFunctionCalculationError: If Prometheus returns no data
+        """
+        result = self.prom_client.process_prom_query_in_range(
+            query,
+            start_time=timestamp,
+            end_time=timestamp,
+            granularity=100,
+        )
+        if not result:
+            raise FitnessFunctionCalculationError(
+                f"Prometheus returned no data for query '{query}' at {timestamp} "
+                f"during {context}. This may indicate the metric does not exist "
+                f"in the requested time range or Prometheus has not yet scraped data."
+            )
+        for series in result:
+            if series.get("values"):
+                return series["values"][-1][1]
+        raise FitnessFunctionCalculationError(
+            f"Prometheus returned no data for query '{query}' at {timestamp} "
+            f"during {context}. This may indicate the metric does not exist "
+            f"in the requested time range or Prometheus has not yet scraped data."
+        )
 
     def calculate_range_fitness(self, start, end, query):
         """
@@ -484,9 +515,21 @@ class KrknRunner:
             start_time=start,
             end_time=end,
             granularity=100,
-        )[0]["values"][-1][1]
-
-        return float(result)
+        )
+        if not result:
+            raise FitnessFunctionCalculationError(
+                f"Prometheus returned no data for query '{query}' in range "
+                f"[{start}, {end}]. This may indicate the metric does not exist "
+                f"in the requested time range or Prometheus has not yet scraped data."
+            )
+        for series in result:
+            if series.get("values"):
+                return float(series["values"][-1][1])
+        raise FitnessFunctionCalculationError(
+            f"Prometheus returned no data for query '{query}' in range "
+            f"[{start}, {end}]. This may indicate the metric does not exist "
+            f"in the requested time range or Prometheus has not yet scraped data."
+        )
 
     def __extract_returncode_from_run(
         self, log: str, default_returncode: int
