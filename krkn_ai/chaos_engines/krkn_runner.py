@@ -111,8 +111,6 @@ class KrknRunner:
             time.sleep(rng.randint(1, 3))
             log, returncode = "", 0
         else:
-            # TODO: How to capture logs from composite run scenario
-
             # Start watching application urls for health checks
             health_check_watcher.run()
 
@@ -124,9 +122,13 @@ class KrknRunner:
                 )
 
                 # Extract return code from run log which is part of telemetry data present in the log
-                returncode, run_uuid = self.__extract_returncode_from_run(
-                    log, returncode
-                )
+                if isinstance(scenario, CompositeScenario):
+                    # Use the return-code from the shell command for composite scenario
+                    pass
+                else:
+                    returncode, run_uuid = self.__extract_returncode_from_run(
+                        log, returncode
+                    )
                 logger.info("Krkn scenario return code: %d", returncode)
 
             finally:
@@ -290,7 +292,8 @@ class KrknRunner:
 
         # Run Json graph
         command = KRKNCTL_GRAPH_RUN_TEMPLATE.format(
-            path=json_file, kubeconfig=self.config.kubeconfig_file_path
+            path=json_file,
+            kubeconfig=self.config.kubeconfig_file_path,
         )
         return command
 
@@ -378,7 +381,7 @@ class KrknRunner:
         }
         result = {
             "image": scenario.krknhub_image,
-            "name": scenario.name,
+            "name": scenario.krknctl_name,
             "env": env,
         }
         if depends_on is not None:
