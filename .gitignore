@@ -176,6 +176,7 @@ cython_debug/
 notebooks/
 
 tmp/
+hack/
 
 kubeconfig.yaml
 krknctl-kubeconfig*

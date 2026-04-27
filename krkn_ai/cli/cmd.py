@@ -241,8 +241,8 @@ def discover(
     init_logger(None, verbose >= 2)
     logger = get_logger(__name__)
 
-    if kubeconfig == "" or kubeconfig is None:
-        logger.warning("Kubeconfig file not found.")
+    if kubeconfig == "" or kubeconfig is None or not os.path.exists(kubeconfig):
+        logger.error("Kubeconfig file not found.")
         exit(1)
 
     cluster_manager = ClusterManager(kubeconfig)
