@@ -372,7 +372,7 @@ class ClusterManager:
             except Exception as e:
                 node_component.free_cpu = -1  # -1 means not available
                 node_component.free_mem = -1  # -1 means not available
-                logger.error(
+                logger.warning(
                     "Failed to fetch node metrics for node %s: %s",
                     node.metadata.name,
                     e,

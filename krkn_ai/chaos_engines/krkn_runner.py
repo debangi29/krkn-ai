@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 # TODO: Cleanup of temp kubeconfig after running the script
 
-PODMAN_TEMPLATE = 'podman run --env-host=true -e PUBLISH_KRAKEN_STATUS="False" -e TELEMETRY_PROMETHEUS_BACKUP="False" -e WAIT_DURATION={wait_duration} {env_list} {{es_env_list}} --net=host -v {kubeconfig}:/home/krkn/.kube/config:Z {image}'
+PODMAN_TEMPLATE = 'podman run -e PUBLISH_KRAKEN_STATUS="False" -e TELEMETRY_PROMETHEUS_BACKUP="False" -e WAIT_DURATION={wait_duration} {env_list} {{es_env_list}} --net=host -v {kubeconfig}:/home/krkn/.kube/config:Z {image}'
 
 PODMAN_ES_TEMPLATE = ' -e ENABLE_ES="True" -e ES_SERVER="{server}" -e ES_PORT="{port}" -e ES_USERNAME="{username}" -e ES_PASSWORD="{password}" -e ES_VERIFY_CERTS="{verify_certs}" '
 
