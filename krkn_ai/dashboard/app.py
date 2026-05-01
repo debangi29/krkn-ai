@@ -24,11 +24,15 @@ from krkn_ai.dashboard.tabs.dashboard import (
     render_scenario_distribution,
     render_scenario_fitness_variation,
     render_generation_details,
+    render_baseline_delta,
+    render_improvement_trend,
 )
 from krkn_ai.dashboard.tabs.health_checks import render_health_checks
 from krkn_ai.dashboard.tabs.detailed_scenarios import render_detailed_scenarios
 from krkn_ai.dashboard.tabs.logs import render_logs
 from krkn_ai.dashboard.tabs.config import render_config
+from krkn_ai.dashboard.tabs.anomalies import render_anomalies
+from krkn_ai.dashboard.report_generator import generate_html_report
 
 
 def get_monitor_config():
@@ -118,7 +122,7 @@ def main():
         st.sidebar.success("Execution completed!")
         auto_refresh = False
     else:
-        st.sidebar.warning("Execution status unknown.")
+        st.sidebar.success("Execution completed!")
         auto_refresh = False
 
     # Load data — loaders return (file_found: bool, df | None)
@@ -127,6 +131,9 @@ def main():
     health_file_found, df_health = load_health_check_csv(output_dir)
     df_details = load_detailed_scenarios_data(output_dir)
     df_logs = load_logs(output_dir)
+
+    # fully unfiltered copy (baseline row included) for anomaly detection
+    df_results_all = df_results.copy() if df_results is not None else None
 
     # results_empty_file / health_empty_file - file exists but df is None (empty CSV)
     results_empty_file = results_file_found and df_results is None
@@ -280,7 +287,6 @@ def main():
                 cutoff
             )
 
-    # df_results_all = df_results  # keeping a reference to unfiltered dataframe if needed later!!
     df_failed = None
     if df_results is not None and not df_results.empty:
         # Separating failed scenarios.
@@ -301,6 +307,23 @@ def main():
         global_scenarios_id if global_scenarios_id else all_scenario_ids
     )
     active_generations = global_generations if global_generations else all_generations
+
+    if df_results_all is not None and not df_results_all.empty:
+        mask = pd.Series(True, index=df_results_all.index)
+        if active_scenario_names:
+            mask &= (df_results_all["scenario"].isin(active_scenario_names)) | (
+                df_results_all["scenario_id"].astype(str) == "baseline"
+            )
+        if active_scenario_ids:
+            str_ids = [str(x) for x in active_scenario_ids]
+            mask &= (df_results_all["scenario_id"].astype(str).isin(str_ids)) | (
+                df_results_all["scenario_id"].astype(str) == "baseline"
+            )
+        if active_generations and "generation_id" in df_results_all.columns:
+            mask &= ((df_results_all["generation_id"] + 1).isin(active_generations)) | (
+                df_results_all["scenario_id"].astype(str) == "baseline"
+            )
+        df_results_all = df_results_all[mask].copy()
 
     if df_results is not None and not df_results.empty:
         if active_scenario_names:
@@ -348,12 +371,56 @@ def main():
         str_ids = [str(x) for x in filtered_scenario_ids]
         df_details = df_details[df_details["scenario_id"].astype(str).isin(str_ids)]
 
+    # HTML Report Export
+    st.sidebar.divider()
+    st.sidebar.header("Export Report")
+    if st.sidebar.button("Generate HTML Report", use_container_width=True):
+        with st.sidebar:
+            with st.spinner("Building report…"):
+                # Using the already context-filtered dataframes and apply global_services where applicable
+                report_df_health = df_health.copy() if df_health is not None else None
+                if (
+                    report_df_health is not None
+                    and not report_df_health.empty
+                    and global_services
+                ):
+                    report_df_health = report_df_health[
+                        report_df_health["component_name"].isin(global_services)
+                    ]
+                raw_mode = st.session_state.get("anom_mode", "Z-Score")
+                amode = "z_score" if "Z-Score" in raw_mode else "pct_deviation"
+
+                html_bytes = generate_html_report(
+                    df_results=df_results,
+                    df_health=report_df_health,
+                    df_results_all=df_results_all,
+                    df_details=df_details,
+                    df_failed=df_failed if "df_failed" in locals() else None,
+                    global_services=global_services
+                    if "global_services" in locals()
+                    else None,
+                    filtered_scenario_ids=filtered_scenario_ids,
+                    anomaly_mode=amode,
+                ).encode("utf-8")
+
+        from datetime import datetime as _dt
+
+        ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+        st.sidebar.download_button(
+            label="Download Report",
+            data=html_bytes,
+            file_name=f"krkn_ai_report_{ts}.html",
+            mime="text/html",
+            use_container_width=True,
+        )
+
     # Tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
         [
             "Dashboard",
             "Health Checks",
             "Detailed Scenarios",
+            "Anomalies",
             "Logs",
             "Configuration",
             "Failed Scenarios",
@@ -392,6 +459,10 @@ def main():
             render_fitness_evolution(df_results)
             st.divider()
             render_generation_details(df_results)
+            st.divider()
+            render_baseline_delta(df_results_all)
+            st.divider()
+            render_improvement_trend(df_results_all)
 
     with tab2:
         if not has_any_data:
@@ -427,12 +498,27 @@ def main():
             )
 
     with tab4:
-        render_logs(df_logs, scen_id_to_name=scen_id_to_name)
+        if not has_any_data:
+            st.warning("No valid Krkn-AI data found in the selected folder.")
+        else:
+            render_anomalies(
+                df_results=df_results,
+                df_health=df_health,
+                df_results_all=df_results_all,
+                df_details=df_details,
+                global_services=global_services if global_services else None,
+                filtered_scenario_ids=filtered_scenario_ids
+                if filtered_scenario_ids
+                else None,
+            )
 
     with tab5:
-        render_config(config_data)
+        render_logs(df_logs, scen_id_to_name=scen_id_to_name)
 
     with tab6:
+        render_config(config_data)
+
+    with tab7:
         render_generation_details(df_failed, title="Failed Scenarios")
 
     # Refresh mechanism

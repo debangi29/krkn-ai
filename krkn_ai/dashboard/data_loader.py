@@ -95,17 +95,6 @@ def load_health_check_csv(output_dir: str):
         return True, None
 
 
-# def load_best_scenarios_yaml(output_dir: str):
-#     yaml_path = os.path.join(output_dir, "reports", "best_scenarios.yaml")
-#     if os.path.exists(yaml_path):
-#         try:
-#             with open(yaml_path, "r") as f:
-#                 return yaml.safe_load(f)
-#         except Exception as e:
-#             logging.error(f"Failed to load best_scenarios.yaml: {e}")
-#     return None
-
-
 def load_logs(output_dir: str):
     """
     Parse all scenario_N.log files and return a list of structured dicts,
@@ -202,6 +191,14 @@ def load_logs(output_dir: str):
             except Exception:
                 return {}
 
+        def get_distribution():
+            dist_m = re.search(
+                r"Detected distribution\s+([a-zA-Z0-9_-]+)", clean_raw, re.IGNORECASE
+            )
+            if dist_m:
+                return dist_m.group(1).capitalize()
+            return jval("distribution") or jval("distribution_type") or "—"
+
         # Top-level telemetry fields
         telemetry = {
             "run_uuid": jval("run_uuid") or "",
@@ -210,6 +207,7 @@ def load_logs(output_dir: str):
             "timestamp": jval("timestamp") or "",
             "total_node_count": jval("total_node_count") or 0,
             "network_plugins": jlist("network_plugins") or ["Unknown"],
+            "distribution": get_distribution(),
             "kubernetes_objects_count": jobj("kubernetes_objects_count"),
             "scenarios": [],
             "node_summary_infos": [],
@@ -332,6 +330,7 @@ def load_logs(output_dir: str):
                 "k8s_objects": telemetry.get("kubernetes_objects_count", {}),
                 "net_plugins": telemetry.get("network_plugins", ["Unknown"]),
                 "timeline": timeline,
+                "distribution": telemetry.get("distribution", "Kubernetes"),
             }
         )
 

@@ -35,7 +35,7 @@ def render_logs(log_data, scen_id_to_name=None):
     with btn_col:
         st.write("")
         st.write("")
-        if st.button("View Raw .log", type="tertiary", use_container_width=True):
+        if st.button("View Raw .log", type="primary", use_container_width=True):
             if d:
                 show_raw_log_modal(d.get("raw_text", ""))
 
@@ -61,10 +61,20 @@ def render_logs(log_data, scen_id_to_name=None):
     os_ver = (node_info.get("os_version") or "—").replace("GNU/Linux ", "")
     exit_st = d.get("exit_status", "—")
     duration = d.get("duration", "—")
+    dist = d.get("distribution", "—")
+
+    st.markdown(
+        """<style>
+        [data-testid="stMetricDelta"] svg {
+            display: none;
+        }
+        </style>""",
+        unsafe_allow_html=True,
+    )
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Duration", duration, scen_type)
-    m2.metric("Cluster version", cluster_ver, "Kubernetes")
+    m2.metric("Cluster version", cluster_ver, dist)
     m3.metric("Total nodes", node_cnt, f"{arch} · {os_ver}")
     m4.metric("Scenarios run", 1, f"exit status {exit_st}")
 
