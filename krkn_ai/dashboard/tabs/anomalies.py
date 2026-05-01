@@ -45,16 +45,15 @@ SEVERITY_COLORS = {"High": "#ef4444", "Medium": "#f97316", "Low": "#eab308"}
 def load_anomaly_config() -> dict:
     import os
 
-    try:
-        import yaml
-    except ImportError:
-        yaml = None
-
     config_path = os.path.join(os.path.dirname(__file__), "..", "anomaly_config.yaml")
-    if os.path.exists(config_path) and yaml is not None:
+    if os.path.exists(config_path):
         try:
+            import yaml
+
             with open(config_path, "r") as f:
                 return yaml.safe_load(f) or {}
+        except ImportError:
+            pass
         except Exception as e:
             st.warning(f"Error loading anomaly_config.yaml: {e}")
     return {}
@@ -316,7 +315,7 @@ def detect_fitness_regression(df: pd.DataFrame) -> pd.DataFrame:
     prev_gen = prev_best = None
     cfg = get_anomaly_config().get("fitness_regression", {})
     for gen_id, best_fs in gen_best.items():
-        if prev_best is not None and best_fs < prev_best:
+        if prev_best is not None and prev_gen is not None and best_fs < prev_best:
             drop_pct = ((prev_best - best_fs) / max(prev_best, 1e-6)) * 100
             z = -drop_pct / cfg.get("z_div", 10.0)
             severity = (
@@ -855,9 +854,15 @@ def create_duration_z_scores_plot(df_results: pd.DataFrame, baseline: dict):
             (2.5, "dash", "#ef4444", "+2.5σ"),
             (-2.5, "dash", "#ef4444", "-2.5σ"),
         ]
-        anomaly_color = lambda z: (
-            "#ef4444" if abs(z) >= 2.5 else "#f97316" if abs(z) >= 1.5 else "#64748b"
-        )
+
+        def anomaly_color(z):
+            return (
+                "#ef4444"
+                if abs(z) >= 2.5
+                else "#f97316"
+                if abs(z) >= 1.5
+                else "#64748b"
+            )
     else:
         # No baseline: fall back to std-based z-score vs run mean
         mean_d = working["duration_seconds"].mean()
@@ -874,9 +879,15 @@ def create_duration_z_scores_plot(df_results: pd.DataFrame, baseline: dict):
             (2.5, "dash", "#ef4444", "+2.5σ"),
             (-2.5, "dash", "#ef4444", "-2.5σ"),
         ]
-        anomaly_color = lambda z: (
-            "#ef4444" if abs(z) >= 2.5 else "#f97316" if abs(z) >= 1.5 else "#64748b"
-        )
+
+        def anomaly_color(z):
+            return (
+                "#ef4444"
+                if abs(z) >= 2.5
+                else "#f97316"
+                if abs(z) >= 1.5
+                else "#64748b"
+            )
 
     working["color"] = working["z_duration"].apply(anomaly_color)
     fig = go.Figure(
@@ -1312,7 +1323,6 @@ def render_anomalies(
 
     # Baseline extraction
     baseline = _extract_baseline(src)
-    has_baseline = any(v is not None for v in baseline.values())
 
     # Run all detectors with chosen mode
     fitness_anom = detect_fitness_iqr_anomalies(

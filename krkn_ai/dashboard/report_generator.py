@@ -28,7 +28,6 @@ from typing import Optional, List
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 from krkn_ai.dashboard.tabs.dashboard import (
     create_fitness_evolution_plot,
